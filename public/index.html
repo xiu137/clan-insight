@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#152d25"><meta name="description" content="Clan member participation, war commitments and observed history.">
+  <title>Clan Insight · Member participation</title>
+  <link rel="stylesheet" href="./style.css"><script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span> Clan Insight</a>
+    <div class="header-tools"><span id="connection-state" class="status-pill">Loading shared data</span><button id="refresh" class="icon-button" aria-label="Refresh shared data" title="Refresh shared data">↻</button></div>
+  </header>
+  <main>
+    <section class="intro"><div><p class="eyebrow">MEMBER PARTICIPATION</p><h1 id="clan-name">Your clan, over time.</h1><p id="data-time" class="muted">Reading the latest shared snapshot…</p></div>
+      <div class="reference-controls"><label>Regular wars <input id="regular-wars" type="number" min="0" max="100" value="10"></label><label>CWL seasons <input id="cwl-seasons" type="number" min="0" max="12" value="1"></label></div>
+    </section>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <section class="totals" aria-label="Reference summary">
+      <div><span id="current-count">—</span><small>Current members</small></div><div><span id="war-count">—</span><small>Completed wars</small></div><div><span id="live-count">—</span><small>Ongoing wars</small></div><div><span id="history-count">—</span><small>Former members</small></div>
+    </section>
+    <div class="workspace">
+      <section class="member-panel" aria-labelledby="member-heading">
+        <div class="panel-toolbar"><div><h2 id="member-heading">Members</h2><p id="result-count" class="muted">Observed history, without guessing the gaps.</p></div>
+          <details id="filters" class="filter"><summary>Filter <span aria-hidden="true">☷</span></summary><div class="filter-body">
+            <label class="toggle-row"><input id="include-former" type="checkbox"> Include former members</label>
+            <label>War preference<select id="intent-filter"><option value="all">All flags</option><option value="in">Opted in</option><option value="out">Opted out</option><option value="unknown">Unknown</option></select></label>
+            <label>Sort by<select id="sort"><option value="lastWar">Last war</option><option value="name">Name</option><option value="sinceJoin">Since join</option><option value="attacks">Attacks used</option><option value="lastActivity">Observed activity</option><option value="reference">Reference cost</option></select></label>
+            <label class="toggle-row"><input id="descending" type="checkbox" checked> Descending</label>
+          </div></details>
+        </div>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find a member or tag" aria-label="Find a member or tag" autocomplete="off"></label>
+        <div class="table-wrap"><table><thead><tr><th><button data-sort="name">Member</button></th><th><button data-sort="sinceJoin">Since join</button></th><th><button data-sort="attacks">Attacks</button></th><th><button data-sort="lastWar">Last war</button></th></tr></thead><tbody id="members"></tbody></table></div>
+        <div id="empty" class="empty" hidden>No members match these filters.</div>
+        <nav class="pagination" aria-label="Member pages"><span id="page-label">—</span><div><button id="previous" aria-label="Previous page">←</button><span id="page-position">—</span><button id="next" aria-label="Next page">→</button></div></nav>
+        <p class="table-note"><span class="dot in"></span> Opted in <span class="dot out"></span> Opted out <span class="dot unknown"></span> Unknown <span class="missed-key">Red attacks</span> = unused attacks in complete, ended wars.</p>
+      </section>
+      <aside id="desktop-detail" class="detail-panel"><div class="detail-placeholder"><span aria-hidden="true">↖</span><h2>Look beyond the total.</h2><p>Select a member to see their war history, commitments and changes in membership.</p><p class="small">Unselected substitutes are never counted as missed attacks.</p></div></aside>
+    </div>
+    <footer><div class="file-actions"><button id="import">Import snapshot</button><button id="export" disabled>Export snapshot</button><button id="shared" hidden>Use shared data</button><input id="import-file" type="file" accept=".json,application/json" hidden></div>
+      <p>Unknown history stays unknown. Reference costs support human decisions; they do not choose a war roster.</p><p class="small">Unofficial fan project. Not affiliated with Supercell. Data from the official Clash of Clans API.</p>
+    </footer>
+  </main>
+  <dialog id="member-dialog"><div class="dialog-header"><button id="close-detail">← Members</button></div><div id="mobile-detail"></div></dialog>
+</body></html>
