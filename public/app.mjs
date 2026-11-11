@@ -6,6 +6,13 @@ const date = value => value == null ? "Unknown" : new Date(value).toLocaleDateSt
 const fullDate = value => value == null ? "Unknown" : new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const clock = value => new Date(value).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const role = member => !member.isCurrent ? "Left clan" : ({ leader: "Leader", coLeader: "Co-leader", admin: "Elder", member: "Member" }[member.info.role] ?? "Role unknown");
+// Shape carries the meaning even when display settings remove the colour difference.
+function optBadge(value, decorative = false) {
+  const state = ["in", "out"].includes(value) ? value : "unknown";
+  const label = { in: "Opted in", out: "Opted out", unknown: "War preference unknown" }[state];
+  const mark = { in: '<path d="m5.5 10 3 3 6-6"/>', out: '<path d="M6 10h8"/>', unknown: '<path d="M7.5 7.5a2.5 2.5 0 0 1 5 0c0 1.7-2.5 1.8-2.5 3.5"/><path d="M10 14h.01"/>' }[state];
+  return `<span class="opt-badge ${state}" ${decorative ? 'aria-hidden="true"' : `role="img" aria-label="${label}"`} title="${label}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/>${mark}</svg></span>`;
+}
 let data = null, manifest = null, cache = null, computed = null, page = 0, selected = null, busy = false, local = false;
 let sort = "lastWar", descending = true;
 
@@ -112,7 +119,8 @@ function renderRows() {
   $("members").innerHTML = rows.slice(start, end).map(row => {
     const member = row.member, membership = member.membership.at(-1)?.kind;
     const badge = member.isCurrent && ["joined", "returned"].includes(membership) ? `<span class="badge">${membership === "joined" ? "New" : "Returned"}</span>` : "";
-    return `<tr><td><button class="member-link" data-member="${escape(member.info.tag)}"><span class="dot ${latestOpt(member)}" title="${latestOpt(member) === "in" ? "Opted in" : latestOpt(member) === "out" ? "Opted out" : "Unknown flag"}"></span><span class="name-group"><span class="name">${escape(member.info.name)}${badge}</span><span class="meta">TH ${member.info.townHall ?? "?"} · ${role(member)}</span></span></button></td>
+    const membershipMeta = member.isCurrent ? ` · ${role(member)}` : ' <span class="badge left">Left clan</span>';
+    return `<tr><td><button class="member-link" data-member="${escape(member.info.tag)}">${optBadge(latestOpt(member))}<span class="name-group"><span class="name">${escape(member.info.name)}${badge}</span><span class="meta">TH ${member.info.townHall ?? "?"}${membershipMeta}</span></span></button></td>
       <td title="Reference wars since the observed entry; not an exact join date">${row.sinceJoin?.text ?? "—"}</td>
       <td class="${!row.expected ? "attack-unknown" : row.missed ? "attack-miss" : "attack-complete"}">${row.expected ? `${row.attacks}<span class="muted"> / ${row.expected}</span>` : "—"}</td>
       <td title="Last captured war in which this member attacked">${row.lastWar ? date(row.lastWar.startsAt) : "—"}</td></tr>`;
@@ -145,19 +153,19 @@ function detailHTML(row) {
       const value = cell(member, war); return `<div class="round"><small>${mapped ? i + 1 : date(war.startsAt)}</small><div class="round-symbol ${value.style}" title="${value.label}${war ? ` · ${escape(war.opponent)}` : ""}">${value.symbol}</div></div>`;
     }).join("")}</div>`;
   }).join("");
-  const regular = computed.wars.filter(x => !x.isCWL).map(war => { const value = cell(member, war); return `<div class="war-row"><span class="dot ${optDuring(member, war)}" title="Observed flag during this war"></span><div><strong>${escape(war.opponent)}</strong><small>${date(war.startsAt)} · ${settled(war) ? "Complete" : war.state === "warEnded" ? "Incomplete record" : "Ongoing"}</small></div><span class="war-symbol ${value.style === "miss" ? "attack-miss" : "attack-complete"}" title="${value.label}">${value.symbol}</span></div>`; }).join("");
+  const regular = computed.wars.filter(x => !x.isCWL).map(war => { const value = cell(member, war); return `<div class="war-row">${optBadge(optDuring(member, war))}<div><strong>${escape(war.opponent)}</strong><small>${date(war.startsAt)} · ${settled(war) ? "Complete" : war.state === "warEnded" ? "Incomplete record" : "Ongoing"}</small></div><span class="war-symbol ${value.style === "miss" ? "attack-miss" : "attack-complete"}" title="${value.label}">${value.symbol}</span></div>`; }).join("");
   const timeline = [
     ...member.membership.map(x => ({ at: x.date, text: ({ baselinePresent: "Present when tracking began", baselineOutside: "Outside when tracking began", joined: "Joined", left: "Left clan", returned: "Returned" }[x.kind] ?? x.kind), style: "unknown", after: x.after })),
-    ...member.opt.filter((x, i, all) => i === 0 || all[i - 1].value !== x.value).map(x => ({ at: x.date, text: x.value === "in" ? "Opted in · observed" : "Opted out · observed", style: x.value })),
-    ...computed.wars.map(war => ({ at: war.startsAt, text: `${war.isCWL ? "CWL" : "War"} · ${war.opponent}`, style: optDuring(member, war) })),
+    ...member.opt.filter((x, i, all) => i === 0 || all[i - 1].value !== x.value).map(x => ({ at: x.date, text: x.value === "in" ? "Opted in · observed" : "Opted out · observed", style: x.value, preference: true, decorative: true })),
+    ...computed.wars.map(war => ({ at: war.startsAt, text: `${war.isCWL ? "CWL" : "War"} · ${war.opponent}`, style: optDuring(member, war), preference: true })),
   ].sort((a, b) => b.at - a.at).slice(0, 35);
   const cost = row.penalty;
-  return `<article class="member-detail"><div class="detail-heading"><span class="dot ${latestOpt(member)}"></span><h2>${escape(member.info.name)}</h2></div><p class="detail-tag">${escape(member.info.tag)} · TH ${member.info.townHall ?? "?"} · ${role(member)}</p>
+  return `<article class="member-detail"><div class="detail-heading">${optBadge(latestOpt(member))}<h2>${escape(member.info.name)}</h2></div><p class="detail-tag">${escape(member.info.tag)} · TH ${member.info.townHall ?? "?"} · ${role(member)}</p>
     <div class="detail-totals"><div><strong>${row.expected ? `${row.attacks}/${row.expected}` : "—"}</strong><small>Attacks used</small></div><div><strong>${row.selectedWars}</strong><small>Selected wars</small></div><div><strong>${row.lastWar ? date(row.lastWar.startsAt) : "—"}</strong><small>Last war attack</small></div></div>
     ${cwls || '<p class="small">No CWL details in this reference.</p>'}
     <div class="section-label"><h3>Regular wars</h3><span>${computed.wars.filter(x => !x.isCWL).length} in reference</span></div>${regular || '<p class="small">No captured regular wars.</p>'}
     <div class="section-label"><h3>Reference costs</h3><span>${Number(cost.total.toFixed(1))}</span></div><div class="costs">${cost.roleExempt ? "Leader / co-leader: exempt. Attack facts remain visible." : `<strong>Commitments ${cost.breach}</strong> · Rest ${cost.rest} · Activity ${cost.activityGap == null ? "unknown" : Number(cost.activityGap.toFixed(1))}${member.info.role === "admin" ? " (elder reduction)" : ""}.`}${cost.unattributedMisses ? `<br>${cost.unattributedMisses} unused attack(s) have no confirmed green flag; no breach cost inferred.` : ""}<br>Last observed own attack: ${fullDate(member.lastOwnAttackAt)}.</div>
-    <div class="section-label"><h3>Observed timeline</h3><span>Flags + wars + membership</span></div>${timeline.map(x => `<div class="history-item"><span class="dot ${x.style}"></span><span>${escape(x.text)}</span><time title="${escape(x.after ? `Observed between ${fullDate(x.after)} and ${fullDate(x.at)}` : fullDate(x.at))}">${date(x.at)}</time></div>`).join("")}
+    <div class="section-label"><h3>Observed timeline</h3><span>Flags + wars + membership</span></div>${timeline.map(x => `<div class="history-item">${x.preference ? optBadge(x.style, x.decorative) : '<span class="dot" aria-hidden="true"></span>'}<span>${escape(x.text)}</span><time title="${escape(x.after ? `Observed between ${fullDate(x.after)} and ${fullDate(x.at)}` : fullDate(x.at))}">${date(x.at)}</time></div>`).join("")}
     <p class="small" style="margin-top:14px">Dates describe observations and wars. Gaps do not prove inactivity or an exact join time.</p></article>`;
 }
 function renderDetails() {
@@ -170,6 +178,7 @@ function renderDetails() {
   if (!row) return;
   const html = detailHTML(row); $("desktop-detail").innerHTML = html; $("mobile-detail").innerHTML = html;
 }
+$("opt-legend").innerHTML = [["in", "Opted in"], ["out", "Opted out"], ["unknown", "Unknown"]].map(([value, label]) => `<span class="legend-item">${optBadge(value, true)}${label}</span>`).join("");
 $("members").addEventListener("click", event => {
   const button = event.target.closest("[data-member]"); if (!button) return;
   selected = button.dataset.member; renderDetails();

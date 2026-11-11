@@ -32,7 +32,7 @@
         <div class="table-wrap"><table><thead><tr><th><button data-sort="name">Member</button></th><th><button data-sort="sinceJoin">Since join</button></th><th><button data-sort="attacks">Attacks</button></th><th><button data-sort="lastWar">Last war</button></th></tr></thead><tbody id="members"></tbody></table></div>
         <div id="empty" class="empty" hidden>No members match these filters.</div>
         <nav class="pagination" aria-label="Member pages"><span id="page-label">—</span><div><button id="previous" aria-label="Previous page">←</button><span id="page-position">—</span><button id="next" aria-label="Next page">→</button></div></nav>
-        <p class="table-note"><span class="dot in"></span> Opted in <span class="dot out"></span> Opted out <span class="dot unknown"></span> Unknown <span class="missed-key">Red attacks</span> = unused attacks in complete, ended wars.</p>
+        <p class="table-note"><span id="opt-legend" class="opt-legend"></span><span class="missed-key">Red attacks</span> = unused attacks in complete, ended wars.</p>
       </section>
       <aside id="desktop-detail" class="detail-panel"><div class="detail-placeholder"><span aria-hidden="true">↖</span><h2>Look beyond the total.</h2><p>Select a member to see their war history, commitments and changes in membership.</p><p class="small">Unselected substitutes are never counted as missed attacks.</p></div></aside>
     </div>
