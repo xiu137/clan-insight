@@ -1,0 +1,9 @@
+{
+  "name": "clan-insight",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "dev": "python3 -m http.server 8088 --bind 127.0.0.1 --directory dist"
+  }
+}
