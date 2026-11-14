@@ -182,6 +182,9 @@ struct ClanWarAttack: Codable, Hashable, Sendable {
 struct ClanWarMember: Codable, Hashable, Sendable {
     var info: ClanMemberInfo
     var attacks: [ClanWarAttack]
+    // Position on our side's war map, not roster order or global attack order.
+    // Optional so older snapshots and archives without the field still load.
+    var mapPosition: Int?
 }
 
 struct ClanWarRecord: Codable, Hashable, Identifiable, Sendable {
@@ -218,7 +221,8 @@ struct ClanWarRecord: Codable, Hashable, Identifiable, Sendable {
                 return ClanWarAttack(attacker: attacker.uppercased(), defender: attack["defenderTag"].string,
                                      order: attack["order"].int, stars: stars.flatMap { (0...3).contains($0) ? $0 : nil })
             }
-            return ClanWarMember(info: info, attacks: attacks)
+            let position = entry["mapPosition"].int.flatMap { (1...50).contains($0) && (size <= 0 || $0 <= size) ? $0 : nil }
+            return ClanWarMember(info: info, attacks: attacks, mapPosition: position)
         }
         isCWL = observation.kind == .cwlwar; self.season = season; self.round = round
         id = isCWL ? "cwl:" + observation.subject : "regular:\(clanTag.uppercased()):\(starts.timeIntervalSince1970):\(other["tag"].string ?? "")"

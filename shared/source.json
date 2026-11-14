@@ -1,10 +1,10 @@
 {
   "source": "ios/CoCPlanner/Core/Clan",
   "sha256": {
-    "ClanAPIModels.swift": "373d4a62faa65aeb09c1ef764e658f691f428da85c27e5e869abd0279c628b68",
+    "ClanAPIModels.swift": "f5516d464704f8334f46ca3d7eeedb0c293122e97dded5fe6d42dc2b93324a07",
     "ClanArchive.swift": "cd81ef8832dbd1d4c32177559eccba816710d703efa43183f9f2cb998d7cf205",
     "ClanStatistics.swift": "460c48d4ca5d87e444ba3c877858a3d0de88f68047a5842109a13c5b8ce159bd",
     "ClanSync.swift": "c32e501e7631eb08881c7e4a312a24bb30b5db0590a212ec8da37ba02bd94309",
-    "ClanPublication.swift": "eec93c98d9fd127320ee76405fac6bb58a7c29543f5573799694340fdf481a02"
+    "ClanPublication.swift": "43d76d56c2c7b71acd4be72eaeacbb6fe7238f9a0d6965237f7e6ccbff2291f8"
   }
 }

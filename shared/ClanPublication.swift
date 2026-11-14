@@ -103,6 +103,7 @@ struct ClanSnapshot: Codable, Sendable {
             valid(war.observedAt) && war.startsAt < war.endsAt && war.members.count <= 50
                 && Set(war.members.map { $0.info.tag }).count == war.members.count
                 && (war.quota.map { (1...10).contains($0) } ?? true)
+                && war.members.allSatisfy { $0.mapPosition.map { (1...50).contains($0) } ?? true }
         }) else { throw ClanDataError.invalid("Invalid snapshot evidence dates or wars") }
         var result = ClanDataset(ClanArchive(clanTag: clanTag))
         result.clanName = clanName; result.latestRosterAt = latestRosterAt
@@ -211,8 +212,12 @@ struct ClanPublicationManifest: Codable, Sendable {
 }
 
 struct ClanPublicationCache: Codable, Sendable {
+    // Up to 16 MB of wire data (base64 encoded on disk) plus 16 MB of local history.
+    static let maximumDiskBytes = 48 * 1024 * 1024
     var manifest: ClanPublicationManifest
     var snapshotData: Data
+    /// Local merged facts are separate from the server bytes and their SHA-256.
+    var localHistory: ClanSnapshot? = nil
     func snapshot() throws -> ClanSnapshot {
         guard snapshotData.count == manifest.snapshot.bytes,
               ClanPublicationManifest.digest(snapshotData) == manifest.snapshot.sha256 else {
@@ -220,6 +225,21 @@ struct ClanPublicationCache: Codable, Sendable {
         }
         let value = try ClanSnapshot.decode(snapshotData)
         guard value.clanTag == manifest.clanTag else { throw ClanDataError.invalid("Snapshot contains another clan") }
+        return value
+    }
+    func dataset() throws -> ClanDataset {
+        let source = try snapshot().dataset()
+        guard let localHistory else { return source }
+        return try source.preservingHistory(from: localHistory.dataset())
+    }
+    func retainingHistory(_ dataset: ClanDataset) throws -> ClanPublicationCache {
+        guard dataset.clanTag == manifest.clanTag else { throw ClanDataError.invalid("Snapshot contains another clan") }
+        let history = ClanSnapshot(dataset)
+        guard try history.encoded().count <= ClanSnapshot.maximumBytes else {
+            throw ClanDataError.invalid("Clan snapshot exceeds 16 MB")
+        }
+        _ = try history.dataset()
+        var value = self; value.localHistory = history
         return value
     }
 }
@@ -257,13 +277,14 @@ enum ClanPublicationLoader {
            cached.manifest.snapshot.sha256 == manifest.snapshot.sha256,
            cached.manifest.snapshot.bytes == manifest.snapshot.bytes {
             _ = try cached.snapshot()
-            return ClanPublicationCache(manifest: manifest, snapshotData: cached.snapshotData)
+            return ClanPublicationCache(manifest: manifest, snapshotData: cached.snapshotData, localHistory: cached.localHistory)
         }
         let data = try await transport.get(request(manifest.snapshot.path))
         guard data.status == 200, data.data.count <= ClanSnapshot.maximumBytes else {
             throw ClanDataError.invalid("Clan snapshot unavailable (HTTP \(data.status))")
         }
-        let result = ClanPublicationCache(manifest: manifest, snapshotData: data.data)
+        let history = cached?.manifest.clanTag == manifest.clanTag ? cached?.localHistory : nil
+        let result = ClanPublicationCache(manifest: manifest, snapshotData: data.data, localHistory: history)
         _ = try result.snapshot()
         return result
     }
