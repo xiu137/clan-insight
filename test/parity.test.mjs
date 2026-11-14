@@ -83,6 +83,8 @@ test("Map positions belong to each war and older snapshots remain unknown", () =
   assert.equal(warMemberResult("#AAA", second).mapPosition, null);
   assert.equal(warMemberResult("#CCC", first).selected, false);
   assert.equal(warMemberResult("#CCC", first).symbol, "—");
+  second.members[1].mapPosition = 40; // CWL API position may exceed the selected team size.
+  assert.equal(warMemberResult("#AAA", second).mapPosition, 40);
 });
 
 test("No attack, not selected, and incomplete wars keep distinct states", () => {
