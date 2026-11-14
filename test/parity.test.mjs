@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { statistics, pageRanges, optDuring, penalty, sortedMembers, validateSnapshot } from "../public/stats.mjs";
+import { statistics, pageRanges, optDuring, penalty, sortedMembers, validateSnapshot, warMemberResult } from "../public/stats.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 test("Published browser facts match Swift for all members and reference ranges", { skip: !existsSync(root + ".private/parity.json") }, () => {
@@ -51,4 +51,46 @@ test("Unknown last-war dates remain last in either direction", () => {
   const rows = [null, 10, 20].map((startsAt, i) => ({ member: { info: { tag: "#AA" + i } }, lastWar: startsAt == null ? null : { startsAt } }));
   assert.equal(sortedMembers(rows, "lastWar", true).at(-1).lastWar, null);
   assert.equal(sortedMembers(rows, "lastWar", false).at(-1).lastWar, null);
+});
+
+test("Regular war shows every attack in attack order, including zero and unknown stars", () => {
+  const war = { state: "warEnded", complete: true, quota: 2, members: [
+    { info: { tag: "#AAA" }, mapPosition: 12, attacks: [{ order: 70, stars: 3 }, { order: 24, stars: 0 }] },
+  ] };
+  const result = warMemberResult("#AAA", war);
+  assert.equal(result.mapPosition, 12);
+  assert.deepEqual(result.attacks.map(x => x.stars), [0, 3]);
+  assert.equal(result.symbol, "2/2");
+  assert.equal(result.style, "hit");
+  assert.equal(war.members[0].attacks[0].order, 70); // Presentation does not mutate archived facts.
+  war.members[0].attacks = [{ order: 2 }];
+  const partial = warMemberResult("#AAA", war);
+  assert.deepEqual(partial.attacks.map(x => x.stars), [null]);
+  assert.equal(partial.symbol, "1/2");
+  assert.equal(partial.style, "miss");
+});
+
+test("Map positions belong to each war and older snapshots remain unknown", () => {
+  const first = { state: "warEnded", complete: true, quota: 1, isCWL: true, members: [
+    { info: { tag: "#BBB" }, mapPosition: 1, attacks: [] },
+    { info: { tag: "#AAA" }, mapPosition: 15, attacks: [{ stars: 0 }] },
+  ] };
+  assert.equal(warMemberResult("#AAA", first).mapPosition, 15);
+  assert.equal(warMemberResult("#AAA", first).symbol, "0★");
+  const second = structuredClone(first); second.members[1].mapPosition = 12;
+  assert.equal(warMemberResult("#AAA", second).mapPosition, 12);
+  delete second.members[1].mapPosition;
+  assert.equal(warMemberResult("#AAA", second).mapPosition, null);
+  assert.equal(warMemberResult("#CCC", first).selected, false);
+  assert.equal(warMemberResult("#CCC", first).symbol, "—");
+});
+
+test("No attack, not selected, and incomplete wars keep distinct states", () => {
+  const war = { state: "warEnded", complete: true, quota: 2, members: [{ info: { tag: "#AAA" }, attacks: [] }] };
+  assert.equal(warMemberResult("#AAA", war).symbol, "×");
+  assert.equal(warMemberResult("#AAA", war).style, "miss");
+  assert.equal(warMemberResult("#BBB", war).symbol, "—");
+  war.complete = false;
+  assert.equal(warMemberResult("#AAA", war).symbol, "…");
+  assert.equal(warMemberResult("#AAA", war).style, "live");
 });
