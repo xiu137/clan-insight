@@ -1,4 +1,4 @@
-import { validateSnapshot, statistics, sortedMembers, pageRanges, latestOpt, optDuring, seasonKey, settled } from "./stats.mjs";
+import { validateSnapshot, statistics, sortedMembers, pageRanges, latestOpt, optDuring, seasonKey, settled, warMemberResult } from "./stats.mjs";
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value ?? "").replace(/[&<>"']/g, x => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[x]));
@@ -132,17 +132,8 @@ function renderRows() {
   $("previous").disabled = page === 0; $("next").disabled = page >= ranges.length - 1;
   document.querySelectorAll("[data-sort]").forEach(button => { button.classList.toggle("active", button.dataset.sort === sort); button.textContent = ({ name: "Member", sinceJoin: "Since join", attacks: "Attacks", lastWar: "Last war" }[button.dataset.sort]) + (button.dataset.sort === sort ? descending ? " ↓" : " ↑" : ""); });
 }
-function cell(member, war) {
-  if (!war) return { symbol: "?", style: "", label: "No captured war" };
-  const entry = war.members.find(x => x.info.tag === member.info.tag);
-  if (!entry) return { symbol: "—", style: "", label: "Not selected" };
-  if (entry.attacks.length) {
-    const stars = entry.attacks[0].stars;
-    return { symbol: war.isCWL ? stars == null ? "✓" : `${stars}★` : `${entry.attacks.length}/${war.quota ?? "?"}`,
-      style: settled(war) && entry.attacks.length < war.quota ? "miss" : "hit", label: `${entry.attacks.length} attack(s) used` };
-  }
-  return settled(war) ? { symbol: "×", style: "miss", label: "Selected; no attack" }
-    : { symbol: "…", style: "live", label: war.state === "preparation" ? "Preparation" : "Unfinished or incomplete record" };
+function mapPositionHTML(value) {
+  return value.selected ? `<span class="map-position" title="${value.mapPosition == null ? "Own war map position unknown" : `Own war map position ${value.mapPosition}`}">#${value.mapPosition ?? "?"}</span>` : "";
 }
 function detailHTML(row) {
   const member = row.member, seasons = [...new Set(computed.wars.filter(x => x.isCWL).map(seasonKey))];
@@ -150,10 +141,14 @@ function detailHTML(row) {
     const wars = computed.wars.filter(x => x.isCWL && seasonKey(x) === season).sort((a, b) => a.startsAt - b.startsAt);
     const mapped = wars.every(x => x.round != null), slots = mapped ? Array.from({ length: 7 }, (_, i) => wars.find(x => x.round === i + 1)) : wars;
     return `<div class="section-label"><h3>CWL · ${escape(season.replace("unmapped:", ""))}</h3><span>${mapped ? "Rounds 1–7" : "Round labels unavailable"}</span></div><div class="rounds">${slots.map((war, i) => {
-      const value = cell(member, war); return `<div class="round"><small>${mapped ? i + 1 : date(war.startsAt)}</small><div class="round-symbol ${value.style}" title="${value.label}${war ? ` · ${escape(war.opponent)}` : ""}">${value.symbol}</div></div>`;
+      const value = warMemberResult(member.info.tag, war); return `<div class="round"><small>${mapped ? i + 1 : date(war.startsAt)}</small><div class="round-symbol ${value.style}" title="${value.label}${war ? ` · ${escape(war.opponent)}` : ""}">${value.symbol}</div><small class="round-position">${mapPositionHTML(value) || "—"}</small></div>`;
     }).join("")}</div>`;
   }).join("");
-  const regular = computed.wars.filter(x => !x.isCWL).map(war => { const value = cell(member, war); return `<div class="war-row">${optBadge(optDuring(member, war))}<div><strong>${escape(war.opponent)}</strong><small>${date(war.startsAt)} · ${settled(war) ? "Complete" : war.state === "warEnded" ? "Incomplete record" : "Ongoing"}</small></div><span class="war-symbol ${value.style === "miss" ? "attack-miss" : "attack-complete"}" title="${value.label}">${value.symbol}</span></div>`; }).join("");
+  const regular = computed.wars.filter(x => !x.isCWL).map(war => {
+    const value = warMemberResult(member.info.tag, war);
+    const scores = value.attacks.map(attack => `<span class="attack-star" title="Recorded attack${Number.isInteger(attack.order) && attack.order > 0 ? ` #${attack.order}` : ""}: ${attack.stars == null ? "stars unknown" : `${attack.stars} stars`}">${attack.stars ?? "?"}★</span>`).join("");
+    return `<div class="war-row">${optBadge(optDuring(member, war))}<div class="war-target"><strong>${escape(war.opponent)}</strong><small class="war-meta">${mapPositionHTML(value)}<span>${date(war.startsAt)} · ${settled(war) ? "Complete" : war.state === "warEnded" ? "Incomplete record" : war.state === "preparation" ? "Preparation" : "Ongoing"}</span></small></div><div class="war-result ${value.style}">${scores ? `<div class="attack-stars" aria-label="Recorded attack stars">${scores}</div><small title="${value.label}">${value.symbol} attacks</small>` : `<span class="war-symbol" title="${value.label}">${value.symbol}</span>`}</div></div>`;
+  }).join("");
   const timeline = [
     ...member.membership.map(x => ({ at: x.date, text: ({ baselinePresent: "Present when tracking began", baselineOutside: "Outside when tracking began", joined: "Joined", left: "Left clan", returned: "Returned" }[x.kind] ?? x.kind), style: "unknown", after: x.after })),
     ...member.opt.filter((x, i, all) => i === 0 || all[i - 1].value !== x.value).map(x => ({ at: x.date, text: x.value === "in" ? "Opted in · observed" : "Opted out · observed", style: x.value, preference: true, decorative: true })),

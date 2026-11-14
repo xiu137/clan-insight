@@ -2,6 +2,26 @@
 const day = 86400000;
 export const settled = war => war.state === "warEnded" && war.complete && war.quota != null;
 export const seasonKey = war => war.season ?? "unmapped:" + new Date(war.startsAt).toISOString().slice(0, 7);
+
+// Per-attack stars describe the member's attacks, not the clan's net star gain.
+// Missing map positions in older publications stay unknown, never roster indexes.
+export function warMemberResult(tag, war) {
+  const entry = war?.members.find(x => x.info.tag === tag);
+  const result = { selected: Boolean(entry), mapPosition: null, attacks: [], symbol: war ? "—" : "?", style: "", label: war ? "Not selected" : "No captured war" };
+  if (!entry) return result;
+  result.mapPosition = Number.isInteger(entry.mapPosition) && entry.mapPosition >= 1 && entry.mapPosition <= 50 ? entry.mapPosition : null;
+  const order = attack => Number.isInteger(attack.order) && attack.order > 0 ? attack.order : Infinity;
+  result.attacks = [...entry.attacks].sort((a, b) => order(a) - order(b)).map(attack => ({
+    ...attack, stars: Number.isInteger(attack.stars) && attack.stars >= 0 && attack.stars <= 3 ? attack.stars : null,
+  }));
+  if (result.attacks.length) {
+    const stars = result.attacks[0].stars;
+    return { ...result, symbol: war.isCWL ? stars == null ? "✓" : `${stars}★` : `${result.attacks.length}/${war.quota ?? "?"}`,
+      style: settled(war) && result.attacks.length < war.quota ? "miss" : "hit", label: `${result.attacks.length} attack(s) used` };
+  }
+  return { ...result, ...(settled(war) ? { symbol: "×", style: "miss", label: "Selected; no attack" }
+    : { symbol: "…", style: "live", label: war.state === "preparation" ? "Preparation" : "Unfinished or incomplete record" }) };
+}
 export const latestOpt = member => member.opt.at(-1)?.value ?? "unknown";
 export function optDuring(member, war) {
   const start = war.preparationStartsAt ?? war.startsAt;
@@ -110,7 +130,8 @@ export function validateSnapshot(data) {
   }
   for (const war of data.wars) {
     if (!Number.isFinite(war.startsAt) || !Number.isFinite(war.endsAt) || war.startsAt >= war.endsAt || !Array.isArray(war.members)
-      || war.members.length > 50 || war.members.some(x => !x.info?.tag || !Array.isArray(x.attacks))) throw new Error("Invalid war history.");
+      || war.members.length > 50 || war.members.some(x => !x.info?.tag || !Array.isArray(x.attacks)
+        || x.mapPosition != null && (!Number.isInteger(x.mapPosition) || x.mapPosition < 1 || x.mapPosition > 50))) throw new Error("Invalid war history.");
   }
   data.wars.sort((a, b) => b.startsAt - a.startsAt);
   return data;
