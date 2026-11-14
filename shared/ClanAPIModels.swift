@@ -221,7 +221,9 @@ struct ClanWarRecord: Codable, Hashable, Identifiable, Sendable {
                 return ClanWarAttack(attacker: attacker.uppercased(), defender: attack["defenderTag"].string,
                                      order: attack["order"].int, stars: stars.flatMap { (0...3).contains($0) ? $0 : nil })
             }
-            let position = entry["mapPosition"].int.flatMap { (1...50).contains($0) && (size <= 0 || $0 <= size) ? $0 : nil }
+            // CWL positions can exceed teamSize in real API responses; do not
+            // truncate them to the number of selected members or renumber them.
+            let position = entry["mapPosition"].int.flatMap { (1...50).contains($0) ? $0 : nil }
             return ClanWarMember(info: info, attacks: attacks, mapPosition: position)
         }
         isCWL = observation.kind == .cwlwar; self.season = season; self.round = round

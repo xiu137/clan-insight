@@ -1,7 +1,7 @@
 {
   "source": "ios/CoCPlanner/Core/Clan",
   "sha256": {
-    "ClanAPIModels.swift": "f5516d464704f8334f46ca3d7eeedb0c293122e97dded5fe6d42dc2b93324a07",
+    "ClanAPIModels.swift": "23344cbd39720d5d75ab880988c1a01799dc16081e06908182fb0395bb21ef80",
     "ClanArchive.swift": "cd81ef8832dbd1d4c32177559eccba816710d703efa43183f9f2cb998d7cf205",
     "ClanStatistics.swift": "460c48d4ca5d87e444ba3c877858a3d0de88f68047a5842109a13c5b8ce159bd",
     "ClanSync.swift": "c32e501e7631eb08881c7e4a312a24bb30b5db0590a212ec8da37ba02bd94309",
